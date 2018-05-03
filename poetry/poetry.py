@@ -5,6 +5,8 @@ import json
 
 import jsonschema
 
+import os
+
 from .__version__ import __version__
 from .config import Config
 from .exceptions import InvalidProjectFile
@@ -68,19 +70,26 @@ class Poetry:
 
     @classmethod
     def create(cls, cwd):  # type: () -> Poetry
-        candidates = [Path(cwd)]
-        candidates.extend(Path(cwd).parents)
+        if os.environ.get('POETRY_PYPROJECT'):
+            poetry_file = Path(os.environ['POETRY_PYPROJECT'])
 
-        for path in candidates:
-            poetry_file = path / 'pyproject.toml'
-
-            if poetry_file.exists():
-                break
+            if not poetry_file.exists():
+                raise RuntimeError('Poetry could not find {}'.format(poetry_file))
 
         else:
-            raise RuntimeError(
-                'Poetry could not find a pyproject.toml file in {} or its parents'.format(cwd)
-            )
+            candidates = [Path(cwd)]
+            candidates.extend(Path(cwd).parents)
+
+            for path in candidates:
+                poetry_file = path / 'pyproject.toml'
+
+                if poetry_file.exists():
+                    break
+
+            else:
+                raise RuntimeError(
+                    'Poetry could not find a pyproject.toml file in {} or its parents'.format(cwd)
+                )
 
         local_config = TomlFile(poetry_file.as_posix()).read(True)
         if 'tool' not in local_config or 'poetry' not in local_config['tool']:
